@@ -1356,8 +1356,8 @@
     ];
     /*DEFAULT_STATE_END*/
 
-    let siteConfig = Object.assign({}, defaultSiteConfig, JSON.parse(localStorage.getItem("idaleecious_config_v7") || "{}"));
-    let menuData = JSON.parse(localStorage.getItem("idaleecious_menu_v7")) || defaultMenuData;
+    let siteConfig = JSON.parse(JSON.stringify(defaultSiteConfig));
+    let menuData = JSON.parse(JSON.stringify(defaultMenuData));
     let isAdmin = false;
     let currentCategory = "Semua";
     let currentMode = "Delivery";
