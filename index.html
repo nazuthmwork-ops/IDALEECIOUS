@@ -2040,19 +2040,21 @@ async function publishToGitHub() {
         publishQueued = true;
         return;
     }
+
+    let token = localStorage.getItem("idaleecious_gh_token");
+    if (!token) {
+        token = prompt("Masukkan GitHub Personal Access Token (hanya sekali pada peranti ini):");
+        if (!token) return;
+        localStorage.setItem("idaleecious_gh_token", token.trim());
+    }
+
     isPublishing = true;
-
-    const encodedToken = "Z2l0aHViX3BhdF8xMUNWRklJN1kwZ20xVGJQUnZEeExOX05PeHU2RWJHa01CZkg5YmlUVWlxVE82RzZyT0lFUDZTY1VpaTlheXB2NFhBV0RGVk5BWXR3WTBQeTBw";
-    const token = atob(encodedToken);
-
     const owner = "nazuthmwork-ops";
     const repo = "IDALEECIOUS";
     const path = "index.html";
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
-    // Papar status sedang menyimpan di butang admin
     const btn = document.getElementById("stealthAdminBtn");
-    const oldText = btn ? btn.innerText : "";
     if (btn) btn.innerText = "⏳ Auto-saving ke GitHub...";
 
     try {
@@ -2063,7 +2065,12 @@ async function publishToGitHub() {
             }
         });
 
-        if (!getRes.ok) throw new Error("Token tidak sah.");
+        if (!getRes.ok) {
+            if (getRes.status === 401 || getRes.status === 403) {
+                localStorage.removeItem("idaleecious_gh_token");
+            }
+            throw new Error(`GET ${getRes.status}`);
+        }
 
         const fileData = await getRes.json();
         const currentSha = fileData.sha;
@@ -2103,11 +2110,11 @@ async function publishToGitHub() {
             if (btn) btn.innerText = "✅ Tersimpan di GitHub!";
             setTimeout(() => { if (btn && isAdmin) btn.innerText = "🔓 Admin Aktif"; }, 2500);
         } else {
-            throw new Error("Gagal simpan.");
+            throw new Error(`PUT ${putRes.status}`);
         }
     } catch (err) {
         console.error(err);
-        if (btn) btn.innerText = "❌ Gagal Auto-Save";
+        if (btn) btn.innerText = `❌ Gagal (${err.message})`;
     } finally {
         isPublishing = false;
         if (publishQueued) {
