@@ -951,6 +951,7 @@
             <button class="admin-btn-secondary" onclick="exportUpdatedHTML()">📥 Muat Turun Fail Web Terkini (index.html)</button>
             <button class="admin-btn-secondary" onclick="resetAllData()">🔄 Reset Asal</button>
             <button class="admin-btn-secondary" style="border-color:#ff2a55; color:#ff6b8b;" onclick="logoutAdmin()">🔒 Log Keluar</button>
+            <button class="admin-btn" onclick="publishToGitHub()">🚀 Publish Terus Ke Web (GitHub)</button>
         </div>
     </div>
 
@@ -2031,7 +2032,77 @@
 
         window.open(`https://wa.me/${siteConfig.whatsappNumber}?text=${msg}`, "_blank");
     }
+async function publishToGitHub() {
+    let token = localStorage.getItem("idaleecious_gh_token");
+    
+    if (!token) {
+        token = prompt("Masukkan GitHub Personal Access Token (hanya perlu sekali):");
+        if (!token) return;
+        localStorage.setItem("idaleecious_gh_token", token.trim());
+    }
 
+    const owner = "nazuthmwork-ops";
+    const repo = "IDALEECIOUS";
+    const path = "index.html";
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+    try {
+        const getRes = await fetch(apiUrl, {
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json"
+            }
+        });
+
+        if (!getRes.ok) {
+            localStorage.removeItem("idaleecious_gh_token");
+            throw new Error("Token tidak sah atau tiada akses. Sila cuba lagi.");
+        }
+
+        const fileData = await getRes.json();
+        const currentSha = fileData.sha;
+
+        const wasAdmin = isAdmin;
+        if (wasAdmin) logoutAdmin();
+
+        let fullHTML = document.documentElement.outerHTML;
+        const stateReplacement = `\n    const defaultSiteConfig = ${JSON.stringify(siteConfig, null, 4)};\n\n    const defaultMenuData = ${JSON.stringify(menuData, null, 4)};\n    `;
+        fullHTML = fullHTML.replace(/\/\*DEFAULT_STATE_START\*\/[\s\S]*?\/\*DEFAULT_STATE_END\*\//, `/*DEFAULT_STATE_START*/${stateReplacement}/*DEFAULT_STATE_END*/`);
+        const finalCode = "<!DOCTYPE html>\n" + fullHTML;
+
+        if (wasAdmin) {
+            isAdmin = true;
+            document.body.classList.add("admin-mode");
+            document.getElementById("adminPanel").classList.add("active");
+            document.getElementById("stealthAdminBtn").innerText = "🔓 Admin Aktif";
+            renderMenu();
+        }
+
+        const encodedContent = btoa(unescape(encodeURIComponent(finalCode)));
+
+        const putRes = await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: "Kemas kini menu/tetapan dari Panel Admin",
+                content: encodedContent,
+                sha: currentSha
+            })
+        });
+
+        if (putRes.ok) {
+            alert("✅ Berjaya! Laman web telah dikemas kini terus ke GitHub.");
+        } else {
+            throw new Error("Gagal memuat naik ke GitHub.");
+        }
+    } catch (err) {
+        alert("❌ Ralat: " + err.message);
+    }
+}
     applySiteConfigToUI();
     renderMenu();
 </script>
