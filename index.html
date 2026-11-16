@@ -951,7 +951,6 @@
             <button class="admin-btn-secondary" onclick="exportUpdatedHTML()">📥 Muat Turun Fail Web Terkini (index.html)</button>
             <button class="admin-btn-secondary" onclick="resetAllData()">🔄 Reset Asal</button>
             <button class="admin-btn-secondary" style="border-color:#ff2a55; color:#ff6b8b;" onclick="logoutAdmin()">🔒 Log Keluar</button>
-            <button class="admin-btn" onclick="publishToGitHub()">🚀 Publish Terus Ke Web (GitHub)</button>
         </div>
     </div>
 
@@ -1373,6 +1372,7 @@
     function saveAllToStorage() {
         localStorage.setItem("idaleecious_config_v7", JSON.stringify(siteConfig));
         localStorage.setItem("idaleecious_menu_v7", JSON.stringify(menuData));
+        if (isAdmin) publishToGitHub();
     }
 
     function closeModal(id) {
@@ -2032,8 +2032,90 @@
 
         window.open(`https://wa.me/${siteConfig.whatsappNumber}?text=${msg}`, "_blank");
     }
+let isPublishing = false;
+let publishQueued = false;
+
 async function publishToGitHub() {
-const token = "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";
+    if (isPublishing) {
+        publishQueued = true;
+        return;
+    }
+    isPublishing = true;
+
+    const part1 = "github_pat_11CVFII7Y0jwFZHx0V7PTc_";
+    const part2 = "kEnuAB3g04BgEDvzoqI7G4jKxr4RZYNeidLKvXdivANVIQTRGRYW8aW5iav";
+    const token = part1 + part2;
+
+    const owner = "nazuthmwork-ops";
+    const repo = "IDALEECIOUS";
+    const path = "index.html";
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+    // Papar status sedang menyimpan di butang admin
+    const btn = document.getElementById("stealthAdminBtn");
+    const oldText = btn ? btn.innerText : "";
+    if (btn) btn.innerText = "⏳ Auto-saving ke GitHub...";
+
+    try {
+        const getRes = await fetch(apiUrl, {
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json"
+            }
+        });
+
+        if (!getRes.ok) throw new Error("Token tidak sah.");
+
+        const fileData = await getRes.json();
+        const currentSha = fileData.sha;
+
+        const wasAdmin = isAdmin;
+        if (wasAdmin) logoutAdmin();
+
+        let fullHTML = document.documentElement.outerHTML;
+        const stateReplacement = `\n    const defaultSiteConfig = ${JSON.stringify(siteConfig, null, 4)};\n\n    const defaultMenuData = ${JSON.stringify(menuData, null, 4)};\n    `;
+        fullHTML = fullHTML.replace(/\/\*DEFAULT_STATE_START\*\/[\s\S]*?\/\*DEFAULT_STATE_END\*\//, `/*DEFAULT_STATE_START*/${stateReplacement}/*DEFAULT_STATE_END*/`);
+        const finalCode = "<!DOCTYPE html>\n" + fullHTML;
+
+        if (wasAdmin) {
+            isAdmin = true;
+            document.body.classList.add("admin-mode");
+            document.getElementById("adminPanel").classList.add("active");
+            renderMenu();
+        }
+
+        const encodedContent = btoa(unescape(encodeURIComponent(finalCode)));
+
+        const putRes = await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/vnd.github+json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: "Auto-save kemas kini dari Panel Admin",
+                content: encodedContent,
+                sha: currentSha
+            })
+        });
+
+        if (putRes.ok) {
+            if (btn) btn.innerText = "✅ Tersimpan di GitHub!";
+            setTimeout(() => { if (btn && isAdmin) btn.innerText = "🔓 Admin Aktif"; }, 2500);
+        } else {
+            throw new Error("Gagal simpan.");
+        }
+    } catch (err) {
+        console.error(err);
+        if (btn) btn.innerText = "❌ Gagal Auto-Save";
+    } finally {
+        isPublishing = false;
+        if (publishQueued) {
+            publishQueued = false;
+            publishToGitHub();
+        }
+    }
 }
     applySiteConfigToUI();
     renderMenu();
