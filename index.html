@@ -1493,7 +1493,14 @@
         <div class="checkout-section-title">2. Maklumat Pelanggan</div>
         <input type="text" id="custName" class="form-input" placeholder="Nama Penuh Anda *">
         <input type="tel" id="custPhone" class="form-input" placeholder="No. Telefon Anda (cth: 012-3456789) *">
-
+    <div style="margin-bottom: 10px;">
+    <label style="display:block; font-size:0.82rem; color:var(--accent-gold); margin-bottom:4px; font-weight:600;">
+        📅 Tarikh Ambil / Terima Pesanan (Min. 2 Hari Awal) *
+    </label>
+    <input type="date" id="pickupDate" class="form-input" required 
+           onfocus="let d=new Date(); d.setDate(d.getDate()+2); this.min=d.toISOString().split('T')[0];"
+           style="color-scheme:dark; margin-bottom:0;">
+    </div>
         <div class="delivery-section" id="deliverySection">
             <input type="text" id="custAddress" class="form-input" placeholder="Alamat Penuh Penghantaran *">
             <div style="font-size:0.76rem; color:var(--text-muted); margin-bottom:4px;">
@@ -2588,10 +2595,22 @@
         const custName = document.getElementById("custName").value.trim();
         const custPhone = document.getElementById("custPhone").value.trim();
         const custAddress = document.getElementById("custAddress").value.trim();
+        const pickupDate = document.getElementById("pickupDate").value;
 
         if (!custName || !custPhone) {
             alert("Sila lengkapkan Nama Penuh dan No. Telefon anda!");
             return;
+        }
+        if (!pickupDate) {
+    alert("Sila pilih Tarikh Ambil / Terima Pesanan (minimum 2 hari dari hari ini)!");
+    return;
+        }
+    const minAllowed = new Date();
+    minAllowed.setHours(0, 0, 0, 0);
+    minAllowed.setDate(minAllowed.getDate() + 2);
+        if (new Date(pickupDate + "T00:00:00") < minAllowed) {
+    alert("Maaf, pesanan memerlukan masa minimum 2 hari untuk disiapkan. Sila pilih tarikh yang sah.");
+    return;
         }
 
         if (currentMode === "Delivery" && !custAddress) {
@@ -2610,6 +2629,8 @@
         msg += `👤 *Nama:* ${custName}%0A`;
         msg += `📞 *No. Tel:* ${custPhone}%0A`;
         msg += `🛵 *Mod Pesanan:* ${currentMode}%0A`;
+        const [py, pm, pd] = pickupDate.split("-");
+        msg += `📅 *Tarikh Ambil/Terima:* ${pd}/${pm}/${py}%0A`;
 
         if (currentMode === "Delivery") {
             msg += `🏠 *Alamat Delivery:* ${custAddress}%0A`;
